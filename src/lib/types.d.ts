@@ -1,3 +1,18 @@
+declare interface GameConfig {
+    data: NodesData;
+    width: number;
+    height: number;
+    rows: number;
+    cols: number;
+    startNode: number;
+    fov:
+        | false
+        | {
+              rows: number;
+              cols: number;
+          };
+}
+
 declare interface NodesData {
     paths: number[];
     exits: number[];
@@ -19,4 +34,9 @@ declare interface FOVBoundaries {
     bottom: number;
     left: number;
     right: number;
+}
+
+declare interface MarkedNode {
+    n: number;
+    type: "reward" | "penalty";
 }
