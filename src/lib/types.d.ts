@@ -3,12 +3,20 @@ declare interface NodesData {
     exits: number[];
 }
 
-declare interface NodeIconsData {
-    exit: string;
+declare interface NodeLocation {
+    row: number;
+    col: number;
 }
 
-declare interface NodePosition {
+declare interface NodePosition extends NodeLocation {
     n: number;
     x: number;
     y: number;
+}
+
+declare interface FOVBoundaries {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
 }

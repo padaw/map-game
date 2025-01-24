@@ -1,11 +1,19 @@
 export class Game {
     private canvasEl?: HTMLCanvasElement;
     private ctx?: CanvasRenderingContext2D;
+    private layersCanvasEl?: HTMLCanvasElement;
+    private layersCtx?: CanvasRenderingContext2D;
+
     private nodeW: number;
     private nodeH: number;
 
+    private FOV_ROWS = 4;
+    private FOV_COLS = 4;
+
+    private walkableNodes = $state<number[]>([]);
+    private fovBounds = $state<FOVBoundaries | null>(null);
+
     playerLocation = $state<NodePosition | null>(null);
-    walkableNodes = $state<number[]>([]);
 
     constructor(
         private data: NodesData,
@@ -18,10 +26,11 @@ export class Game {
         this.nodeH = height / gridH;
     }
 
-    setCanvas(canvasEl: HTMLCanvasElement) {
-        this.canvasEl = canvasEl;
-        this.canvasEl.width = this.width;
-        this.canvasEl.height = this.height;
+    setCanvas(primary: HTMLCanvasElement, layers: HTMLCanvasElement) {
+        this.canvasEl = primary;
+        this.layersCanvasEl = layers;
+        primary.width = layers.width = this.width;
+        primary.height = layers.height = this.height;
     }
 
     start(node: number) {
@@ -31,6 +40,9 @@ export class Game {
     move(node: number) {
         this.playerLocation = this.getPosition(node);
         this.walkableNodes = this.calcWalkablePaths();
+        this.fovBounds = this.calcFOV();
+
+        this.drawFOV();
     }
 
     async drawMap(imgSrc: string) {
@@ -84,27 +96,69 @@ export class Game {
         return this.walkableNodes.includes(n);
     }
 
-    getPosition(n: number): NodePosition {
-        const ny = Math.floor(n / this.gridH);
-        const nx = n - ny * this.gridW - 1;
-        const x = nx * this.nodeW;
-        const y = ny * this.nodeH;
-        return { n, x, y };
+    isInFOV(n: number): boolean {
+        if (!this.fovBounds) {
+            return false;
+        }
+        const { col, row } = this.getLocation(n);
+        const { left, right, bottom, top } = this.fovBounds;
+        return col >= left && col <= right && row >= top && row <= bottom;
     }
 
-    private getCtx(): CanvasRenderingContext2D {
-        if (this.ctx) {
-            return this.ctx;
+    private drawFOV() {
+        if (!this.fovBounds) {
+            return;
         }
-        const ctx = this.canvasEl?.getContext("2d");
+        const ctx = this.getCtx("layers");
+        const { left, right, top, bottom } = this.fovBounds;
+
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        ctx.beginPath();
+        ctx.rect(0, 0, this.width, this.height);
+        ctx.roundRect(
+            (left - 1) * this.nodeW,
+            (top - 1) * this.nodeH,
+            (right - left + 1) * this.nodeW,
+            (bottom - top + 1) * this.nodeH,
+            this.nodeW,
+        );
+
+        ctx.fillStyle = "rgba(0,0,0,.75)";
+        ctx.fill("evenodd");
+    }
+
+    private getLocation(n: number): NodeLocation {
+        return {
+            row: Math.ceil(n / this.gridW),
+            col: n % this.gridW,
+        };
+    }
+
+    private getPosition(n: number): NodePosition {
+        const { row, col } = this.getLocation(n);
+        const x = (col - 1) * this.nodeW;
+        const y = (row - 1) * this.nodeH;
+        return { n, x, y, row, col };
+    }
+
+    private getCtx(
+        variant: "primary" | "layers" = "primary",
+    ): CanvasRenderingContext2D {
+        const ctxKey = variant === "primary" ? "ctx" : "layersCtx";
+        const elKey = variant === "primary" ? "canvasEl" : "layersCanvasEl";
+        if (this[ctxKey]) {
+            return this[ctxKey];
+        }
+        const ctx = this[elKey]?.getContext("2d");
         if (!ctx) {
             throw new Error("could not get canvas context");
         }
-        return (this.ctx = ctx);
+        return (this[ctxKey] = ctx);
     }
 
     private nodesInSameRow(anchor: number, nodes: number[]): number[] {
-        const row = Math.ceil(anchor / this.gridW);
+        const { row } = this.getLocation(anchor);
         const rowStart = (row - 1) * this.gridW + 1;
         const rowEnd = row * this.gridW;
         return nodes.filter((n) => n >= rowStart && n <= rowEnd);
@@ -122,5 +176,18 @@ export class Game {
                 .flat()
                 .filter((x) => this.data.paths.includes(x)),
         ];
+    }
+
+    private calcFOV(): FOVBoundaries | null {
+        if (!this.playerLocation) {
+            return null;
+        }
+        const { row, col } = this.playerLocation;
+        return {
+            top: Math.max(0, row - this.FOV_ROWS),
+            bottom: Math.min(this.gridH, row + this.FOV_ROWS),
+            left: Math.max(0, col - this.FOV_COLS),
+            right: Math.min(this.gridW, col + this.FOV_COLS),
+        };
     }
 }

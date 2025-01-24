@@ -1,6 +1,7 @@
 <script lang="ts">
-    let { isWalkable, moveHandler, n, x, y } = $props<{
+    let { isWalkable, isInFOV, moveHandler, n, x, y } = $props<{
         isWalkable: boolean;
+        isInFOV: boolean;
         moveHandler: (n: number) => any;
         n: number;
         x: number;
@@ -10,6 +11,7 @@
 
 <button
     onclick={isWalkable ? () => moveHandler(n) : null}
+    class:outPOV={!isInFOV}
     class:walkable={isWalkable}
     class:regular={!isWalkable}
     aria-label="path node"
@@ -20,6 +22,9 @@
 <style>
     .path {
         @apply absolute transition-all border w-6 h-6 m-1 shadow-lg rounded-2xl;
+    }
+    .path.outPOV {
+        @apply opacity-25;
     }
     .path.regular {
         @apply bg-stone-400/60 border-stone-600/60 shadow-stone-800 cursor-default;
