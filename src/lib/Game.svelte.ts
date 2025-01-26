@@ -1,31 +1,57 @@
 export class Game {
-    private canvasEl?: HTMLCanvasElement;
-    private ctx?: CanvasRenderingContext2D;
-    private layersCanvasEl?: HTMLCanvasElement;
-    private layersCtx?: CanvasRenderingContext2D;
+    private wrapper?: HTMLDivElement;
+    private container?: HTMLDivElement;
+    private canvas?: GameCanvasDict;
+
+    private offsetX: number = 0;
+    private offsetY: number = 0;
 
     private nodeW: number;
     private nodeH: number;
 
-    private randGenerator?: () => number;
+    static readonly REWARD_SCORE = 100;
+    static readonly PENALTY_SCORE = -50;
+    static readonly MOVE_SCORE = -10;
 
-    private walkableNodes = $state<number[]>([]);
-    private fovBounds = $state<FOVBoundaries | null>(null);
-
-    isRunning = $state<boolean>(false);
-    playerLocation = $state<NodePosition | null>(null);
-    markedNodes = $state<MarkedNode[]>([]);
+    current = $state<GameState | null>(null);
+    last = $state<CompletedGame | null>(null);
 
     constructor(private config: GameConfig) {
         this.nodeW = config.width / config.cols;
         this.nodeH = config.height / config.rows;
     }
 
-    setCanvas(primary: HTMLCanvasElement, layers: HTMLCanvasElement) {
-        this.canvasEl = primary;
-        this.layersCanvasEl = layers;
-        primary.width = layers.width = this.config.width;
-        primary.height = layers.height = this.config.height;
+    place(wrapper: HTMLDivElement, container: HTMLDivElement) {
+        const main = document.createElement("canvas");
+        const layers = document.createElement("canvas");
+
+        main.width = this.config.width;
+        main.height = this.config.height;
+        layers.width = this.config.width;
+        layers.height = this.config.height;
+
+        const css = "position: absolute; top: 0; left: 0;";
+
+        main.style.cssText = css;
+        layers.style.cssText = css;
+        main.style.zIndex = "-20";
+        layers.style.zIndex = "-10";
+
+        container.appendChild(main);
+        container.appendChild(layers);
+
+        this.wrapper = wrapper;
+        this.container = container;
+        this.canvas = {
+            main: {
+                element: main,
+                ctx: this.makeCtx(main),
+            },
+            layers: {
+                element: layers,
+                ctx: this.makeCtx(layers),
+            },
+        };
     }
 
     start(seed: number) {
@@ -33,23 +59,74 @@ export class Game {
         let m = 2 ** 35 - 31;
         let a = 185852;
         let s = seed % m;
-        this.randGenerator = function () {
+        const rand = function () {
             return (s = (s * a) % m) / m;
         };
 
-        this.markedNodes = this.markNodes();
-        this.move(this.config.startNode);
+        const marks = $state([]);
+        const reachedMarks = $state([]);
+        const player = $state(this.getPosition(this.config.startNode));
+        const fovBounds = $state(null);
+        const walkable = $state([]);
+        const penalties = $state(0);
+        const rewards = $state(0);
+        const score = $state(this.calcStartingScore());
+        const moves = $state(0);
+        this.current = {
+            player,
+            fovBounds,
+            walkable,
+            marks,
+            reachedMarks,
+            penalties,
+            rewards,
+            score,
+            moves,
+            seed,
+            rand,
+        };
+        this.last = null;
 
-        this.isRunning = true;
+        this.current.marks = this.markNodes();
+        this.move(this.config.startNode, true);
+
+        document.addEventListener("mousedown", this.panHandler.bind(this));
     }
 
-    move(node: number) {
-        this.playerLocation = this.getPosition(node);
-        this.walkableNodes = this.calcWalkablePaths();
-        this.fovBounds = this.calcFOV();
+    move(node: number, hidden: boolean = false) {
+        if (!this.current) {
+            return;
+        }
+        this.current.player = this.getPosition(node);
+        this.current.walkable = this.calcWalkablePaths();
+        this.current.fovBounds = this.calcFOV();
 
         this.drawFOV();
+        this.center();
         this.applyNodeMark(node);
+
+        if (!hidden) {
+            this.current.moves++;
+            this.current.score += Game.MOVE_SCORE;
+        }
+    }
+
+    center() {
+        if (!this.wrapper) {
+            return;
+        }
+        const { offsetWidth, offsetHeight } = this.wrapper;
+        let left: number;
+        let top: number;
+        if (!this.current?.player) {
+            left = (offsetWidth - this.config.width) / 2;
+            top = (offsetHeight - this.config.height) / 2;
+        } else {
+            const { x, y } = this.current.player;
+            left = -x + offsetWidth / 2;
+            top = -y + offsetHeight / 2;
+        }
+        this.applyOffset(left, top);
     }
 
     async drawMap(imgSrc: string) {
@@ -92,32 +169,32 @@ export class Game {
     }
 
     isWalkablePath(n: number): boolean {
-        return this.walkableNodes.includes(n);
+        return !!this.current?.walkable.includes(n);
     }
 
     getNodeMark(n: number): MarkedNode | undefined {
-        return this.markedNodes.find((m) => m.n === n);
+        return this.current?.marks.find((m) => m.n === n);
     }
 
     isInFOV(n: number): boolean {
         if (!this.config.fov) {
             return true;
         }
-        if (!this.fovBounds) {
-            return false;
+        if (!this.current?.fovBounds) {
+            throw new Error();
         }
         const { col, row } = this.getLocation(n);
-        const { left, right, bottom, top } = this.fovBounds;
+        const { left, right, bottom, top } = this.current.fovBounds;
         return col >= left && col <= right && row >= top && row <= bottom;
     }
 
     private drawFOV() {
-        if (!this.fovBounds) {
+        if (!this.current?.fovBounds) {
             return;
         }
         const ctx = this.getCtx("layers");
         const { width, height } = this.config;
-        const { left, right, top, bottom } = this.fovBounds;
+        const { left, right, top, bottom } = this.current.fovBounds;
 
         ctx.clearRect(0, 0, width, height);
 
@@ -151,21 +228,6 @@ export class Game {
         return { n, x, y, row, col };
     }
 
-    private getCtx(
-        variant: "primary" | "layers" = "primary",
-    ): CanvasRenderingContext2D {
-        const ctxKey = variant === "primary" ? "ctx" : "layersCtx";
-        const elKey = variant === "primary" ? "canvasEl" : "layersCanvasEl";
-        if (this[ctxKey]) {
-            return this[ctxKey];
-        }
-        const ctx = this[elKey]?.getContext("2d");
-        if (!ctx) {
-            throw new Error("could not get canvas context");
-        }
-        return (this[ctxKey] = ctx);
-    }
-
     private nodesInSameRow(anchor: number, nodes: number[]): number[] {
         const { row } = this.getLocation(anchor);
         const rowStart = (row - 1) * this.config.cols + 1;
@@ -174,10 +236,10 @@ export class Game {
     }
 
     private calcWalkablePaths(): number[] {
-        if (!this.playerLocation) {
+        if (!this.current?.player) {
             return [];
         }
-        const { n } = this.playerLocation;
+        const { n } = this.current.player;
         return [
             ...this.nodesInSameRow(n, [n - 1, n + 1]),
             ...[n - this.config.cols, n + this.config.cols]
@@ -188,12 +250,12 @@ export class Game {
     }
 
     private calcFOV(): FOVBoundaries | null {
-        if (!this.config.fov || !this.playerLocation) {
+        if (!this.config.fov || !this.current?.player) {
             return null;
         }
         const { rows: fovRows, cols: fovCols } = this.config.fov;
         const { rows, cols } = this.config;
-        const { row, col } = this.playerLocation;
+        const { row, col } = this.current.player;
         return {
             top: Math.max(0, row - fovRows),
             bottom: Math.min(rows, row + fovRows),
@@ -203,10 +265,10 @@ export class Game {
     }
 
     private markNodes(): MarkedNode[] {
-        if (!this.randGenerator) {
+        if (!this.current?.player || !this.current.rand) {
             return [];
         }
-        const { randGenerator: rand } = this;
+        const { rand } = this.current;
 
         const { paths } = this.config.data;
         const indices: number[] = [];
@@ -217,7 +279,11 @@ export class Game {
             let index: number;
             do {
                 index = Math.floor(rand() * paths.length);
-            } while (index === undefined || indices.includes(index));
+            } while (
+                index === undefined ||
+                indices.includes(index) ||
+                this.current.player.n === paths[index]
+            );
             const n = paths[index];
             marked.push({ n, type });
         }
@@ -226,12 +292,92 @@ export class Game {
     }
 
     private applyNodeMark(n: number) {
-        const mark = this.getNodeMark(n);
-        if (!mark) {
+        if (!this.current) {
             return;
         }
-        setTimeout(() => {
-            this.markedNodes = this.markedNodes.filter((m) => m.n !== n);
-        }, 1000);
+        const mark = this.getNodeMark(n);
+        if (!mark || this.current.reachedMarks.includes(n)) {
+            return;
+        }
+        this.current.reachedMarks.push(n);
+        if (mark.type === "reward") {
+            this.current.score += Game.REWARD_SCORE;
+            this.current.rewards++;
+        } else {
+            this.current.score += Game.PENALTY_SCORE;
+            this.current.penalties++;
+        }
+    }
+
+    private calcStartingScore(): number {
+        // TODO
+        return 300;
+    }
+
+    private getCtx(
+        variant: "main" | "layers" = "main",
+    ): CanvasRenderingContext2D {
+        if (!this.canvas) {
+            throw new Error();
+        }
+        return this.canvas[variant].ctx;
+    }
+
+    private makeCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+            throw new Error();
+        }
+        return ctx;
+    }
+
+    private panHandler(e: MouseEvent) {
+        if (e.button !== 0) {
+            return;
+        }
+        let baseX = e.pageX;
+        let baseY = e.pageY;
+        const move = (e: MouseEvent) => {
+            const dx = Math.round((e.pageX - baseX) / this.nodeW);
+            const dy = Math.round((e.pageY - baseY) / this.nodeH);
+            const nx = Math.floor(Math.abs(dx)) * this.nodeW;
+            const ny = Math.floor(Math.abs(dy)) * this.nodeH;
+            if (nx || ny) {
+                let left = this.offsetX;
+                let top = this.offsetY;
+                if (nx) {
+                    left = dx < 0 ? left - nx : left + nx;
+                }
+                if (ny) {
+                    top = dy < 0 ? top - ny : top + ny;
+                }
+                baseX = e.pageX;
+                baseY = e.pageY;
+                this.applyOffset(left, top);
+            }
+            e.preventDefault();
+        };
+        document.addEventListener("mousemove", move);
+        document.addEventListener(
+            "mouseup",
+            () => {
+                document.removeEventListener("mousemove", move);
+            },
+            { once: true },
+        );
+        e.preventDefault();
+    }
+
+    private applyOffset(x: number, y: number) {
+        if (!this.wrapper || !this.container) {
+            throw new Error();
+        }
+        const { offsetWidth: width, offsetHeight: height } = this.wrapper;
+        x = Math.min(0, x);
+        y = Math.min(0, y);
+        this.offsetX = Math.max(x, width - this.config.width);
+        this.offsetY = Math.max(y, height - this.config.height);
+        this.container.style.left = `${this.offsetX}px`;
+        this.container.style.top = `${this.offsetY}px`;
     }
 }

@@ -13,6 +13,23 @@ declare interface GameConfig {
           };
 }
 
+declare interface CompletedGame {
+    score: number;
+    rewards: number;
+    penalties: number;
+    moves: number;
+    seed: number;
+}
+
+declare interface GameState extends CompletedGame {
+    rand: () => number;
+    player: NodePosition;
+    marks: MarkedNode[];
+    walkable: number[];
+    fovBounds: FOVBoundaries | null;
+    reachedMarks: number[];
+}
+
 declare interface NodesData {
     paths: number[];
     exits: number[];
@@ -40,3 +57,11 @@ declare interface MarkedNode {
     n: number;
     type: "reward" | "penalty";
 }
+
+declare type GameCanvasDict = Record<
+    "main" | "layers",
+    {
+        ctx: CanvasRenderingContext2D;
+        element: HTMLCanvasElement;
+    }
+>;
