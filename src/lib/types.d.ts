@@ -14,6 +14,7 @@ declare interface GameConfig {
 }
 
 declare interface CompletedGame {
+    startingScore: number;
     score: number;
     rewards: number;
     penalties: number;
@@ -28,6 +29,7 @@ declare interface GameState extends CompletedGame {
     walkable: number[];
     fovBounds: FOVBoundaries | null;
     reachedMarks: number[];
+    cleanup: () => void;
 }
 
 declare interface NodesData {

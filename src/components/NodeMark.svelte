@@ -19,7 +19,7 @@
 
 <img
     bind:this={img}
-    src={`../../assets/${type}.png`}
+    src={`../../assets/${type}.webp`}
     alt="marked node"
     class:reward={type === "reward"}
     class:penalty={type === "penalty"}

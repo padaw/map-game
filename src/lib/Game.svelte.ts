@@ -14,7 +14,7 @@ export class Game {
     static readonly MOVE_SCORE = -10;
 
     current = $state<GameState | null>(null);
-    last = $state<CompletedGame | null>(null);
+    past = $state<CompletedGame | null>(null);
 
     constructor(private config: GameConfig) {
         this.nodeW = config.width / config.cols;
@@ -52,6 +52,8 @@ export class Game {
                 ctx: this.makeCtx(layers),
             },
         };
+
+        this.center();
     }
 
     start(seed: number) {
@@ -70,8 +72,13 @@ export class Game {
         const walkable = $state([]);
         const penalties = $state(0);
         const rewards = $state(0);
-        const score = $state(this.calcStartingScore());
+        const startingScore = this.calcStartingScore();
+        const score = $state(startingScore);
         const moves = $state(0);
+        const handler = this.panHandler.bind(this);
+        const cleanup = () => {
+            document.removeEventListener("mousedown", handler);
+        };
         this.current = {
             player,
             fovBounds,
@@ -80,23 +87,57 @@ export class Game {
             reachedMarks,
             penalties,
             rewards,
+            startingScore,
             score,
             moves,
             seed,
             rand,
+            cleanup,
         };
-        this.last = null;
+        this.past = null;
 
         this.current.marks = this.markNodes();
         this.move(this.config.startNode, true);
 
-        document.addEventListener("mousedown", this.panHandler.bind(this));
+        document.addEventListener("mousedown", handler);
+    }
+
+    forfeit() {
+        if (!this.current) {
+            return;
+        }
+
+        this.current.cleanup();
+        this.current = null;
+
+        const ctx = this.getCtx("layers");
+        ctx.clearRect(0, 0, this.config.width, this.config.height);
+
+        this.center();
+    }
+
+    clearPastGame() {
+        this.past = null;
     }
 
     move(node: number, hidden: boolean = false) {
         if (!this.current) {
             return;
         }
+
+        if (this.config.data.exits.includes(node)) {
+            this.past = {
+                moves: this.current.moves,
+                penalties: this.current.penalties,
+                rewards: this.current.rewards,
+                score: this.current.score,
+                startingScore: this.current.startingScore,
+                seed: this.current.seed,
+            };
+            this.forfeit();
+            return;
+        }
+
         this.current.player = this.getPosition(node);
         this.current.walkable = this.calcWalkablePaths();
         this.current.fovBounds = this.calcFOV();
@@ -164,8 +205,8 @@ export class Game {
         return this.config.data[label].map(this.getPosition.bind(this));
     }
 
-    isDrawablePath(n: number): boolean {
-        return !this.config.data.exits.includes(n);
+    isExitNode(n: number): boolean {
+        return this.config.data.exits.includes(n);
     }
 
     isWalkablePath(n: number): boolean {
@@ -271,20 +312,21 @@ export class Game {
         const { rand } = this.current;
 
         const { paths } = this.config.data;
-        const indices: number[] = [];
+        const nodes: number[] = [];
         const marked: MarkedNode[] = [];
 
-        for (let i = 0; i < 20 + rand() * 20; i++) {
+        for (let i = 0; i < 20 + rand() * 40; i++) {
             const type = rand() > 0.35 ? "reward" : "penalty";
-            let index: number;
+            let n: number;
             do {
-                index = Math.floor(rand() * paths.length);
+                const index = Math.floor(rand() * paths.length);
+                n = paths[index];
             } while (
-                index === undefined ||
-                indices.includes(index) ||
-                this.current.player.n === paths[index]
+                n === undefined ||
+                nodes.includes(n) ||
+                this.current.player.n === n ||
+                this.config.data.exits.includes(n)
             );
-            const n = paths[index];
             marked.push({ n, type });
         }
 
