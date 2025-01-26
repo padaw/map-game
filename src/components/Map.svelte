@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import data from "../../data/map.json";
     import map from "../../assets/map.webp";
+    import player from "../../assets/player.webp";
     import { Game } from "../lib/Game.svelte";
     import PathNode from "./PathNode.svelte";
     import Title from "./Title.svelte";
@@ -30,7 +31,7 @@
 </script>
 
 <div
-    class="relative m-auto w-dvw aspect-[9/10] max-w-[640px] max-h-dvh overflow-hidden border-2 border-zinc-600/40 shadow-2xl shadow-zinc-800 rounded-lg select-none"
+    class="relative m-auto w-dvw aspect-[9/10] max-w-[960px] max-h-dvh overflow-hidden border-2 border-zinc-600/40 shadow-2xl shadow-zinc-800 rounded-lg select-none"
     bind:this={wrapperEl}
 >
     {#if game.past}
@@ -62,7 +63,7 @@
             <img
                 alt="player"
                 class="transition-all absolute w-8 h-8"
-                src="../../assets/player.webp"
+                src={player}
                 style={`top: ${game.current.player.y}px; left: ${game.current.player.x}px`}
             />
         {/if}

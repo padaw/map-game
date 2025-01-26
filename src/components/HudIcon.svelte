@@ -1,25 +1,34 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
+    import step from "../../assets/step.webp";
+    import reward from "../../assets/reward.webp";
+    import penalty from "../../assets/penalty.webp";
 
-    let { title, color, name, children } = $props<{
-        name: string;
+    let { title, name, children } = $props<{
+        name: "step" | "reward" | "penalty";
         title: string;
-        color: "purple" | "red" | "yellow";
         children: Snippet;
     }>();
+
+    const dict: Record<typeof name, string> = {
+        step: step,
+        reward: reward,
+        penalty: penalty,
+    };
+    let img = dict[name];
 </script>
 
 <div class="relative w-6 h-6" {title}>
     <img
-        src={`../../assets/${name}.webp`}
+        src={img}
         alt={name}
         class="absolute top-0 left-0 w-6 h-6 rounded-full shadow-md shadow-black"
     />
     <div
         class="label absolute -bottom-2 -right-2 px-1 text-xs font-mono font-black rounded-md shadow-sm shadow-black"
-        class:purple={color === "purple"}
-        class:red={color === "red"}
-        class:yellow={color === "yellow"}
+        class:purple={name === "step"}
+        class:red={name === "penalty"}
+        class:yellow={name === "reward"}
     >
         {@render children()}
     </div>

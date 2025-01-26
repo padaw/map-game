@@ -176,9 +176,13 @@ export class Game {
         map.src = imgSrc;
         return new Promise((r) => {
             map.onload = () => {
+                console.log("LLOADED", map);
                 ctx.drawImage(map, 0, 0);
                 r(null);
             };
+            map.onerror = (e) => {
+                console.log(e);
+            }
         });
     }
 

@@ -1,5 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import reward from "../../assets/reward.webp";
+    import penalty from "../../assets/penalty.webp";
 
     let { type, markOut } = $props<{
         type: MarkedNode["type"];
@@ -19,7 +21,7 @@
 
 <img
     bind:this={img}
-    src={`../../assets/${type}.webp`}
+    src={type === "reward" ? reward : penalty}
     alt="marked node"
     class:reward={type === "reward"}
     class:penalty={type === "penalty"}

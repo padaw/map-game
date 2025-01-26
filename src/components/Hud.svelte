@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Game } from "../lib/Game.svelte";
+    import close from "../../assets/close.webp";
     import HudIcon from "./HudIcon.svelte";
 
     let { current, exitHandler } = $props<{
@@ -16,20 +17,16 @@
                 >{current.score}</span
             >
         </div>
-        <HudIcon
-            name="step"
-            title={`Each gives ${Game.MOVE_SCORE} score.`}
-            color="purple">{current.moves}</HudIcon
+        <HudIcon name="step" title={`Each gives ${Game.MOVE_SCORE} score.`}
+            >{current.moves}</HudIcon
         >
-        <HudIcon
-            name="reward"
-            title={`Each gives ${Game.REWARD_SCORE} score.`}
-            color="yellow">{current.rewards}</HudIcon
+        <HudIcon name="reward" title={`Each gives ${Game.REWARD_SCORE} score.`}
+            >{current.rewards}</HudIcon
         >
         <HudIcon
             name="penalty"
             title={`Each gives ${Game.PENALTY_SCORE} score.`}
-            color="red">{current.penalties}</HudIcon
+            >{current.penalties}</HudIcon
         >
     </div>
 </div>
@@ -42,7 +39,7 @@
             }
         }}
     >
-        <img src="../../assets/close.webp" alt="exit" class="w-7 h-7" />
+        <img src={close} alt="exit" class="w-7 h-7" />
     </button>
 </div>
 <div class="absolute bottom-2 right-2 text-zinc-400 text-sm font-bold">
