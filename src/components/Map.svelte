@@ -55,7 +55,7 @@
     {/if}
     <div
         class="absolute top-0 left-0 w-[960px] h-[960px] transition-all"
-        style="transition-duration: 300ms;"
+        style="transition-duration: 200ms;"
         class:-z-10={!game.current}
         bind:this={containerEl}
     >

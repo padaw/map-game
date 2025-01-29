@@ -76,7 +76,7 @@
         <button class="text-btn" onclick={toggleGuide}>How to play?</button>
     {:else}
         <div
-            class="lg:text-lg leading-8 text-justify w-[60%] text-white flex flex-col"
+            class="lg:text-lg lg:leading-8 text-justify w-[90%] lg:w-[60%] text-white flex flex-col"
             style="text-shadow: 1px 1px 2px #000"
         >
             <p>
