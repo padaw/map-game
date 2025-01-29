@@ -10,21 +10,23 @@
 </script>
 
 <div
-    class="absolute top-0 left-0 bottom-0 right-0 bg-black/75 flex flex-col gap-6 justify-center items-center font-mono"
+    class="absolute top-0 left-0 bottom-0 right-0 bg-black/75 flex flex-col gap-2 lg:gap-6 justify-center items-center font-mono"
     style={`background-image: url('${stars}'); background-repeat: no-repeat; background-size: cover;`}
 >
     <h1
-        class="text-3xl font-bold text-white w-max"
+        class="text-xl lg:text-3xl font-bold text-white w-max"
         style="text-shadow: 1px 2px 6px #000"
     >
-        CONGRATULATIONS!
+        YOUR SCORE
     </h1>
     <div style="text-shadow: 1px 2px 6px #000">
-        <span class="text-5xl font-bold text-yellow-100">{game.score}</span>
+        <span class="text-3xl lg:text-5xl font-bold text-yellow-100"
+            >{game.score}</span
+        >
     </div>
     <PlayButton action={resetHandler}>PLAY AGAIN</PlayButton>
     <table
-        class="min-w-[60%] text-white text-lg"
+        class="min-w-[60%] text-white lg:text-lg"
         style="text-shadow: 0 1px 1px #000"
     >
         <tbody>
@@ -47,5 +49,5 @@
             </tr>
         </tbody>
     </table>
-    <span class="text-zinc-400 text-md font-bold">#{game.seed}</span>
+    <span class="text-zinc-400 font-bold">#{game.seed}</span>
 </div>

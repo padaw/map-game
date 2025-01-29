@@ -5,6 +5,8 @@ declare interface GameConfig {
     rows: number;
     cols: number;
     startNode: number;
+    skipIntro?: boolean;
+    introWaitDuration: number;
     fov:
         | false
         | {
@@ -23,6 +25,7 @@ declare interface CompletedGame {
 }
 
 declare interface GameState extends CompletedGame {
+    introInProgress: boolean;
     rand: () => number;
     player: NodePosition;
     marks: MarkedNode[];

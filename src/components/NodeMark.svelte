@@ -3,19 +3,21 @@
     import reward from "../../assets/reward.webp";
     import penalty from "../../assets/penalty.webp";
 
-    let { type, markOut } = $props<{
+    let { type, markOut, handler } = $props<{
         type: MarkedNode["type"];
         markOut: boolean;
+        handler: () => void;
     }>();
 
     let img: HTMLImageElement;
 
     onMount(() => {
-        const handler = () => {
+        const postAnimation = () => {
+            handler();
             img.style.display = "none";
         };
-        img.addEventListener("animationcancel", handler);
-        img.addEventListener("animationend", handler);
+        img.addEventListener("animationcancel", postAnimation);
+        img.addEventListener("animationend", postAnimation);
     });
 </script>
 
@@ -30,7 +32,7 @@
 
 <style>
     @keyframes markOut {
-        10% {
+        25% {
             @apply min-w-40 min-h-40 -top-60;
         }
         75% {
@@ -44,7 +46,7 @@
         @apply absolute transition-all w-6 h-6 -top-2 -left-1;
     }
     img.markOut {
-        animation-duration: 1s;
+        animation-duration: 250ms;
         animation-name: markOut;
         animation-fill-mode: forwards;
     }

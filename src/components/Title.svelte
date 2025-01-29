@@ -1,14 +1,22 @@
 <script lang="ts">
     import type { FormEventHandler } from "svelte/elements";
     import PlayButton from "./PlayButton.svelte";
+    import reward from "../../assets/reward.webp";
+    import step from "../../assets/step.webp";
+    import penalty from "../../assets/penalty.webp";
 
     let { startHandler } = $props<{ startHandler: (seed: number) => void }>();
 
-    let input: HTMLInputElement;
     let button: HTMLButtonElement;
+
+    let isGuideOn = $state(false);
 
     let disabled = $state(true);
     let seed = $state<number | null>(null);
+
+    function toggleGuide() {
+        isGuideOn = !isGuideOn;
+    }
 
     function play() {
         if (disabled || seed === null) {
@@ -37,15 +45,15 @@
 </script>
 
 <div
-    class="absolute top-0 left-0 bottom-0 right-0 bg-black/75 flex flex-col justify-center items-center"
+    class="absolute top-0 left-0 bottom-0 right-0 bg-black/75 flex flex-col gap-2 lg:gap-6 justify-center items-center"
 >
     <h1
-        class="text-4xl font-mono font-bold text-lime-200 w-max mb-6"
+        class="text-4xl font-mono font-bold text-lime-200 w-max"
         style="text-shadow: 2px 4px 12px #000"
     >
         Mystery Island
     </h1>
-    <div class="flex w-full justify-center">
+    <div class="flex w-full justify-center" class:hidden={isGuideOn}>
         <form
             onsubmit={(e) => {
                 e.preventDefault();
@@ -53,7 +61,6 @@
             }}
         >
             <input
-                bind:this={input}
                 type="number"
                 oninput={handleInput}
                 autofocus
@@ -65,4 +72,45 @@
             >
         </form>
     </div>
+    {#if !isGuideOn}
+        <button class="text-btn" onclick={toggleGuide}>How to play?</button>
+    {:else}
+        <div
+            class="lg:text-lg leading-8 text-justify w-[60%] text-white flex flex-col"
+            style="text-shadow: 1px 1px 2px #000"
+        >
+            <p>
+                In Mystery Island, the goal is to reach one of the exit points
+                while collecting the most rewards <img
+                    src={reward}
+                    alt="reward"
+                    class="w-4 h-4 inline"
+                /> on the way.
+            </p>
+            <p>
+                You'll have to consider your moves carefully as each move <img
+                    src={step}
+                    alt="step"
+                    class="w-4 h-4 inline"
+                />
+                costs points. Try to collect the most rewards
+                <img src={reward} alt="reward" class="w-4 h-4 inline" />
+                while avoiding threats
+                <img src={penalty} alt="threat" class="w-4 h-4 inline" /> as
+                they cost significant points, and reach one of the exit nodes
+                <span
+                    class="w-4 h-4 text-xs inline-block rounded-full bg-green-600 text-white font-black text-center"
+                    style="text-shadow: none">E</span
+                > on the map.
+            </p>
+        </div>
+        <button class="text-btn" onclick={toggleGuide}>Go back</button>
+    {/if}
 </div>
+
+<style>
+    .text-btn {
+        @apply underline text-lime-100 text-lg hover:text-lime-400 active:text-lime-600;
+        text-shadow: 1px 1px 2px #000;
+    }
+</style>

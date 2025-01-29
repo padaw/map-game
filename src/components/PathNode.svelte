@@ -1,34 +1,54 @@
 <script lang="ts">
     import NodeMark from "./NodeMark.svelte";
 
-    let { isWalkable, isExit, moveHandler, mark, playerAt, n, x, y } = $props<{
+    let {
+        isWalkable,
+        isExit,
+        exitOnly,
+        moveHandler,
+        mark,
+        playerAt,
+        markHandler,
+        n,
+        x,
+        y,
+    } = $props<{
         isWalkable: boolean;
         isExit: boolean;
+        exitOnly: boolean;
         moveHandler: (n: number) => void;
         mark?: MarkedNode;
         playerAt: boolean;
+        markHandler: (n: number) => void;
         n: number;
         x: number;
         y: number;
     }>();
 </script>
 
-<button
-    onclick={isWalkable ? () => moveHandler(n) : null}
-    class:walkable={isWalkable}
-    class:regular={!isWalkable}
-    class:exit={isExit}
-    aria-label="path node"
-    class="path"
-    style={`top: ${y}px; left: ${x}px`}
->
-    {#if isExit}
-        E
-    {/if}
-    {#if mark}
-        <NodeMark type={mark.type} markOut={playerAt} />
-    {/if}
-</button>
+{#if !exitOnly || isExit}
+    <button
+        onclick={isWalkable ? () => moveHandler(n) : null}
+        class:walkable={isWalkable}
+        class:regular={!isWalkable}
+        class:exit={isExit}
+        class:exitOnly
+        aria-label="path node"
+        class="path"
+        style={`top: ${y}px; left: ${x}px`}
+    >
+        {#if isExit}
+            E
+        {/if}
+        {#if mark}
+            <NodeMark
+                type={mark.type}
+                markOut={playerAt}
+                handler={() => markHandler(n)}
+            />
+        {/if}
+    </button>
+{/if}
 
 <style>
     .path {
@@ -42,12 +62,13 @@
     }
     .path.exit {
         @apply text-center leading-8 w-8 h-8 font-bold font-mono m-0;
-        text-shadow: 1px 1px 4px #000
+        text-shadow: 1px 1px 4px #000;
     }
     .path.regular.exit {
         @apply text-white/90 bg-green-600/60 border-green-700/60 shadow-green-800/40;
     }
-    .path.walkable.exit {
+    .path.walkable.exit,
+    .path.exit.exitOnly {
         @apply text-white bg-green-600 border-green-400 shadow-green-800;
     }
 </style>

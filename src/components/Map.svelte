@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { fade } from "svelte/transition";
     import data from "../../data/map.json";
     import map from "../../assets/map.webp";
     import player from "../../assets/player.webp";
@@ -16,6 +17,8 @@
         width: 960,
         height: 960,
         startNode: 875,
+        introWaitDuration: 1000,
+        // skipIntro: true,
         fov: { rows: 5, cols: 5 },
         // fov: false,
     });
@@ -38,12 +41,21 @@
         <Result game={game.past} resetHandler={game.clearPastGame.bind(game)} />
     {:else if !game.current}
         <Title startHandler={game.start.bind(game)} />
+    {:else if game.current.introInProgress}
+        <div class="absolute top-0 left-0 w-full h-full bg-black/80" out:fade>
+            <h1
+                class="absolute bottom-20 w-full text-center text-lime-200 font-bold font-mono text-3xl"
+                style="text-shadow: 2px 4px 12px #000"
+            >
+                GO TO AN EXIT POSITION
+            </h1>
+        </div>
     {:else}
         <Hud current={game.current} exitHandler={game.forfeit.bind(game)} />
     {/if}
     <div
         class="absolute top-0 left-0 w-[960px] h-[960px] transition-all"
-        style="transition-duration: 50ms;"
+        style="transition-duration: 300ms;"
         class:-z-10={!game.current}
         bind:this={containerEl}
     >
@@ -53,7 +65,9 @@
                     <PathNode
                         isWalkable={game.isWalkablePath(path.n)}
                         isExit={game.isExitNode(path.n)}
+                        exitOnly={game.current.introInProgress}
                         moveHandler={game.move.bind(game)}
+                        markHandler={game.applyNodeMark.bind(game)}
                         mark={game.getNodeMark(path.n)}
                         playerAt={game.current.player.n === path.n}
                         {...path}
@@ -63,6 +77,7 @@
             <img
                 alt="player"
                 class="transition-all absolute w-8 h-8"
+                class:hidden={game.current.introInProgress}
                 src={player}
                 style={`top: ${game.current.player.y}px; left: ${game.current.player.x}px`}
             />

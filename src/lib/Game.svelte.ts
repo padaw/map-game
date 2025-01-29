@@ -56,7 +56,11 @@ export class Game {
         this.center();
     }
 
-    start(seed: number) {
+    async start(seed: number) {
+        if (!this.container) {
+            return;
+        }
+
         // https://stackoverflow.com/a/72732727
         let m = 2 ** 35 - 31;
         let a = 185852;
@@ -65,41 +69,51 @@ export class Game {
             return (s = (s * a) % m) / m;
         };
 
-        const marks = $state([]);
-        const reachedMarks = $state([]);
-        const player = $state(this.getPosition(this.config.startNode));
-        const fovBounds = $state(null);
-        const walkable = $state([]);
-        const penalties = $state(0);
-        const rewards = $state(0);
         const startingScore = this.calcStartingScore();
-        const score = $state(startingScore);
-        const moves = $state(0);
         const handler = this.panHandler.bind(this);
         const cleanup = () => {
-            document.removeEventListener("mousedown", handler);
+            this.container?.removeEventListener("mousedown", handler);
+            this.container?.removeEventListener("touchstart", handler);
         };
         this.current = {
-            player,
-            fovBounds,
-            walkable,
-            marks,
-            reachedMarks,
-            penalties,
-            rewards,
+            introInProgress: !this.config.skipIntro,
+            fovBounds: null,
+            walkable: [],
+            marks: [],
+            reachedMarks: [],
+            moves: 0,
+            penalties: 0,
+            rewards: 0,
+            score: startingScore,
+            player: { n: 0, x: 0, y: 0, row: 0, col: 0 },
             startingScore,
-            score,
-            moves,
             seed,
             rand,
             cleanup,
         };
         this.past = null;
 
+        if (!this.config.skipIntro) {
+            for (const exit of this.config.data.exits) {
+                this.center(exit);
+                await this.pause(this.config.introWaitDuration);
+            }
+            this.current.introInProgress = false;
+        }
+
         this.current.marks = this.markNodes();
         this.move(this.config.startNode, true);
 
-        document.addEventListener("mousedown", handler);
+        this.container.addEventListener("mousedown", handler);
+        this.container.addEventListener("touchstart", handler);
+    }
+
+    private pause(ms: number): Promise<null> {
+        return new Promise((r) => {
+            setTimeout(() => {
+                r(null);
+            }, ms);
+        });
     }
 
     forfeit() {
@@ -144,30 +158,11 @@ export class Game {
 
         this.drawFOV();
         this.center();
-        this.applyNodeMark(node);
 
         if (!hidden) {
             this.current.moves++;
             this.current.score += Game.MOVE_SCORE;
         }
-    }
-
-    center() {
-        if (!this.wrapper) {
-            return;
-        }
-        const { offsetWidth, offsetHeight } = this.wrapper;
-        let left: number;
-        let top: number;
-        if (!this.current?.player) {
-            left = (offsetWidth - this.config.width) / 2;
-            top = (offsetHeight - this.config.height) / 2;
-        } else {
-            const { x, y } = this.current.player;
-            left = -x + offsetWidth / 2;
-            top = -y + offsetHeight / 2;
-        }
-        this.applyOffset(left, top);
     }
 
     async drawMap(imgSrc: string) {
@@ -176,13 +171,9 @@ export class Game {
         map.src = imgSrc;
         return new Promise((r) => {
             map.onload = () => {
-                console.log("LLOADED", map);
                 ctx.drawImage(map, 0, 0);
                 r(null);
             };
-            map.onerror = (e) => {
-                console.log(e);
-            }
         });
     }
 
@@ -218,11 +209,33 @@ export class Game {
     }
 
     getNodeMark(n: number): MarkedNode | undefined {
-        return this.current?.marks.find((m) => m.n === n);
+        if (!this.current) {
+            return;
+        }
+        const mark = this.current.marks.find((m) => m.n === n);
+        return this.current.reachedMarks.includes(n) ? undefined : mark;
+    }
+
+    applyNodeMark(n: number) {
+        if (!this.current) {
+            return;
+        }
+        const mark = this.getNodeMark(n);
+        if (!mark || this.current.reachedMarks.includes(n)) {
+            return;
+        }
+        this.current.reachedMarks.push(n);
+        if (mark.type === "reward") {
+            this.current.score += Game.REWARD_SCORE;
+            this.current.rewards++;
+        } else {
+            this.current.score += Game.PENALTY_SCORE;
+            this.current.penalties++;
+        }
     }
 
     isInFOV(n: number): boolean {
-        if (!this.config.fov) {
+        if (!this.config.fov || this.current?.introInProgress) {
             return true;
         }
         if (!this.current?.fovBounds) {
@@ -257,6 +270,33 @@ export class Game {
         ctx.strokeStyle = "#000";
         ctx.stroke();
         ctx.fill("evenodd");
+    }
+
+    private center(n?: number) {
+        if (!this.wrapper) {
+            return;
+        }
+        const { offsetWidth, offsetHeight } = this.wrapper;
+        let left: number;
+        let top: number;
+        if (n || this.current?.player) {
+            let x: number;
+            let y: number;
+            if (!n) {
+                x = this.current!.player.x;
+                y = this.current!.player.y;
+            } else {
+                const pos = this.getPosition(n);
+                x = pos.x;
+                y = pos.y;
+            }
+            left = -x + offsetWidth / 2;
+            top = -y + offsetHeight / 2;
+        } else {
+            left = (offsetWidth - this.config.width) / 2;
+            top = (offsetHeight - this.config.height) / 2;
+        }
+        this.applyOffset(left, top);
     }
 
     private getLocation(n: number): NodeLocation {
@@ -337,24 +377,6 @@ export class Game {
         return marked;
     }
 
-    private applyNodeMark(n: number) {
-        if (!this.current) {
-            return;
-        }
-        const mark = this.getNodeMark(n);
-        if (!mark || this.current.reachedMarks.includes(n)) {
-            return;
-        }
-        this.current.reachedMarks.push(n);
-        if (mark.type === "reward") {
-            this.current.score += Game.REWARD_SCORE;
-            this.current.rewards++;
-        } else {
-            this.current.score += Game.PENALTY_SCORE;
-            this.current.penalties++;
-        }
-    }
-
     private calcStartingScore(): number {
         // TODO
         return 300;
@@ -377,15 +399,29 @@ export class Game {
         return ctx;
     }
 
-    private panHandler(e: MouseEvent) {
-        if (e.button !== 0) {
+    private getPageVals(e: MouseEvent | TouchEvent): [number, number] {
+        if ("pageX" in e) {
+            return [e.pageX, e.pageY];
+        } else {
+            const t = e.changedTouches[0];
+            return [t.pageX, t.pageY];
+        }
+    }
+
+    private panHandler(e: MouseEvent | TouchEvent) {
+        if (!this.container || ("button" in e && e.button !== 0)) {
             return;
         }
-        let baseX = e.pageX;
-        let baseY = e.pageY;
-        const move = (e: MouseEvent) => {
-            const dx = Math.round((e.pageX - baseX) / this.nodeW);
-            const dy = Math.round((e.pageY - baseY) / this.nodeH);
+
+        const td = this.container.style.transitionDuration;
+        this.container.style.transitionDuration = "50ms";
+
+        let [baseX, baseY] = this.getPageVals(e);
+
+        const move = (e: MouseEvent | TouchEvent) => {
+            const [pageX, pageY] = this.getPageVals(e);
+            const dx = Math.round((pageX - baseX) / this.nodeW);
+            const dy = Math.round((pageY - baseY) / this.nodeH);
             const nx = Math.floor(Math.abs(dx)) * this.nodeW;
             const ny = Math.floor(Math.abs(dy)) * this.nodeH;
             if (nx || ny) {
@@ -397,21 +433,26 @@ export class Game {
                 if (ny) {
                     top = dy < 0 ? top - ny : top + ny;
                 }
-                baseX = e.pageX;
-                baseY = e.pageY;
+                baseX = pageX;
+                baseY = pageY;
                 this.applyOffset(left, top);
             }
             e.preventDefault();
         };
+
+        const cleaner = () => {
+            document.removeEventListener("mousemove", move);
+            document.removeEventListener("touchmove", move);
+            if (this.container) {
+                this.container.style.transitionDuration = td;
+            }
+        };
+
         document.addEventListener("mousemove", move);
-        document.addEventListener(
-            "mouseup",
-            () => {
-                document.removeEventListener("mousemove", move);
-            },
-            { once: true },
-        );
-        e.preventDefault();
+        document.addEventListener("touchmove", move);
+        document.addEventListener("mouseup", cleaner, { once: true });
+        document.addEventListener("touchend", cleaner, { once: true });
+        document.addEventListener("touchcancel", cleaner, { once: true });
     }
 
     private applyOffset(x: number, y: number) {
