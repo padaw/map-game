@@ -101,8 +101,8 @@ export class Game {
             this.current.introInProgress = false;
         }
 
-        this.current.marks = this.markNodes();
         this.move(this.config.startNode, true);
+        this.current.marks = this.markNodes();
 
         this.container.addEventListener("mousedown", handler);
         this.container.addEventListener("touchstart", handler);
@@ -453,6 +453,8 @@ export class Game {
         document.addEventListener("mouseup", cleaner, { once: true });
         document.addEventListener("touchend", cleaner, { once: true });
         document.addEventListener("touchcancel", cleaner, { once: true });
+
+        e.preventDefault();
     }
 
     private applyOffset(x: number, y: number) {
