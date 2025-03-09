@@ -460,8 +460,6 @@ export class Game {
         document.addEventListener("mouseup", cleaner, { once: true });
         document.addEventListener("touchend", cleaner, { once: true });
         document.addEventListener("touchcancel", cleaner, { once: true });
-
-        e.preventDefault();
     }
 
     private applyOffset(x: number, y: number) {
