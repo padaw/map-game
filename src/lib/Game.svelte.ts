@@ -313,25 +313,32 @@ export class Game {
         return { n, x, y, row, col };
     }
 
-    private nodesInSameRow(anchor: number, nodes: number[]): number[] {
-        const { row } = this.getLocation(anchor);
-        const rowStart = (row - 1) * this.config.cols + 1;
-        const rowEnd = row * this.config.cols;
-        return nodes.filter((n) => n >= rowStart && n <= rowEnd);
-    }
-
     private calcWalkablePaths(): number[] {
         if (!this.current?.player) {
             return [];
         }
         const { n } = this.current.player;
-        return [
-            ...this.nodesInSameRow(n, [n - 1, n + 1]),
-            ...[n - this.config.cols, n + this.config.cols]
-                .map((x) => [x, ...this.nodesInSameRow(x, [x - 1, x + 1])])
-                .flat()
-                .filter((x) => this.config.data.paths.includes(x)),
-        ];
+        const { cols, rows } = this.config;
+
+        const nodes: number[] = [];
+        for (const i of [n - cols, n, n + cols]) {
+            if (i < 1 || i > cols * rows) {
+                continue;
+            }
+            if (i !== n) {
+                nodes.push(i)
+            }
+            const row = Math.ceil(i / cols);
+            const min = (row - 1) * cols + 1;
+            const max = row * cols;
+            for (const adj of [i - 1, i + 1]) {
+                if (adj >= min && adj <= max) {
+                    nodes.push(adj);
+                }
+            }
+        }
+
+        return nodes;
     }
 
     private calcFOV(): FOVBoundaries | null {
